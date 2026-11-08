@@ -1,6 +1,4 @@
-# 毛豆笔记 (Maodou Notes) · Windows
-
-> 🖥️ 本仓库为 **Windows 端**（Electron 壳 + 共享内核）。Android 端见仓库 `maodou-note-android`。
+# 毛豆笔记 (Maodou Notes)
 
 类 flomo 的极简卡片笔记工具：离线优先、纯文本 + `#标签`、WebDAV 增量同步、冲突不丢数据。
 设计目标来自 `architecture/ARCHITECTURE.md` 与 `prd/PRD.md`。
@@ -121,13 +119,54 @@ npx cap sync           # 同步 web 资源到 Android 工程
 
 ---
 
+## 分享长图（Share as Long Image）
+
+把一个笔记渲染成一张竖版长图，方便分享到社交平台 / 朋友圈。类 flomo 的「生成分享图」能力。
+
+### 能力
+
+- **单条笔记 → 一张长图**：正文 + `#标签` chips + 创建时间，高度按内容自适应。
+- **3 个模板**（可用 `listShareTemplates()` 获取元信息，或 `listTemplates()` 内核层）：
+  - `paper` —— 纸感卡片（米色纸张 + 便签阴影，默认模板）
+  - `minimal` —— 简约留白（纯白、克制排版）
+  - `dark` —— 暗色渐变（深色 + 渐变背景）
+- **右下角水印**：固定显示「毛豆笔记」(中文) + 「Maodou-Note」(英文)，小字、低透明度；文案可通过 `options.watermarkZh / watermarkEn` 覆盖。
+- **安全**：正文做 XML 转义，杜绝注入；中文/英文/emoji 混排按近似字宽自动换行。
+
+### 内核 API（共享，两端复用）
+
+```ts
+import { generateShareSvg, listTemplates } from 'maodou-notes';
+
+const svg = generateShareSvg(note, { templateId: 'paper' });
+// 返回一张 SVG 长图字符串，宽度 1080，高度自适应
+```
+
+### 客户端导出
+
+内核产出的是**矢量 SVG**，两端在 WebView 里把它栅格化成 PNG：
+
+- Windows（Electron）：`clients/desktop/src/share-export.ts` 提供 `svgToPngDataUrl()` + `downloadDataUrl()`。
+  ```ts
+  const svg = await window.maodou.generateShareImage(noteId, 'paper'); // 主进程渲染
+  const png = await svgToPngDataUrl(svg, 2);
+  downloadDataUrl(png, `maodou-${noteId}.png`);
+  ```
+- Android（Capacitor）：`clients/mobile/src/share-export.ts` 提供 `svgToPngDataUrl()` + `saveSharePng()`（写入设备 Documents 目录）。
+
+### 测试
+
+`tests/ShareImage.test.ts`（13 用例）覆盖：模板列表、水印中英文、正文/日期/标签渲染、XSS 转义、空内容/空标签、超长中文断行、模板差异（暗色渐变 / 简约无阴影）、自定义水印。
+
+---
+
 ## 验证范围
 
-- ✅ 本机可验证（已全绿 44/44）：离线 CRUD、标签解析/规范化/去重、FTS5 中文检索、增量同步往返、真冲突保留双版本、退化 LWW、软删除同步、SyncMeta 文件持久化、软删除跨设备延迟同步回归、边界健壮性（空内容/特殊字符/LIKE 转义等）。
+- ✅ 本机可验证（已全绿 54/54）：离线 CRUD、标签解析/规范化/去重、FTS5 中文检索、增量同步往返、真冲突保留双版本、退化 LWW、软删除同步、SyncMeta 文件持久化、软删除跨设备延迟同步回归、边界健壮性（空内容/特殊字符/LIKE 转义等）、**分享长图渲染（3 模板 + 水印 + XSS 转义）**。
 - ⛔ 需真机/真环境：Android UI 交互与权限、Windows 窗口体验、真实 WebDAV 服务器协议兼容性、跨网络性能。
 
 ### QA 验收记录（第二轮独立验证）
 
 - QA 独立复跑并补充了 `tests/qa_hardening.test.ts`、`tests/qa_softdelete_resurrection.test.ts` 两组加固/回归用例。
 - **发现并修复的源码 Bug**：`SqlJsNoteRepository.query()` 在无可绑定参数时调用 `stmt.bind([])`，WASM SQLite 抛 `This statement has no bindable parameters.`；已改为 `params.length > 0` 时才绑定。
-- 修复后全量回归：**44 passed / 0 failed**，`tsc --noEmit` 零错误。
+- 修复后全量回归：**54 passed / 0 failed**，`tsc --noEmit` 零错误。

@@ -13,6 +13,8 @@ process.env.TEMP = projectTmp;
 process.env.TMP = projectTmp;
 
 export default defineConfig({
+  // 受限沙箱对 .tmp 缓存目录写入会报 EPERM；关闭依赖预构建，彻底规避 ssr 缓存写盘。
+  optimizeDeps: { disabled: true },
   // 强制 Vite 解析到 @sqlite.org/sqlite-wasm 的 Node 构建（而非浏览器 worker 构建），
   // 否则 vitest 在 node 环境下可能加载会发起 fetch 的浏览器构建导致失败。
   resolve: {
@@ -23,5 +25,13 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     globals: false,
     testTimeout: 30000,
+    // 受限沙箱对 .tmp 缓存目录写入会报 EPERM，关闭缓存与依赖优化器以彻底规避。
+    cache: false,
+    deps: {
+      optimizer: {
+        ssr: { enabled: false },
+        web: { enabled: false },
+      },
+    },
   },
 });

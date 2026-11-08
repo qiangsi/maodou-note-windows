@@ -31,3 +31,6 @@ export * from './sync/ConflictResolver';
 // 服务
 export * from './services/TagService';
 export * from './services/SearchService';
+
+// 分享长图
+export * from './share';

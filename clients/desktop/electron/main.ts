@@ -11,6 +11,8 @@ import {
   ConflictResolver,
   SystemClock,
   SyncMeta,
+  generateShareSvg,
+  listTemplates,
   type NoteCard,
   type SyncResult,
 } from 'maodou-notes';
@@ -128,6 +130,16 @@ function registerIpc(): void {
   });
 
   ipcMain.handle('meta:get', () => stateStore.get());
+
+  // 分享长图：列出模板 / 把单条笔记渲染为 SVG 长图
+  ipcMain.handle('share:templates', () => listTemplates());
+  ipcMain.handle('share:generate', (_e, noteId: string, templateId: string) => {
+    const note = repository.get(noteId);
+    if (!note) {
+      throw new Error(`note not found: ${noteId}`);
+    }
+    return generateShareSvg(note, { templateId });
+  });
 }
 
 function createWindow(): void {

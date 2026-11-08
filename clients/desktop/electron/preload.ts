@@ -25,6 +25,10 @@ export interface MaodouApi {
     conflictsDetail: unknown[];
     durationMs: number;
   }>;
+  /** 列出分享长图模板（paper / minimal / dark）。 */
+  listShareTemplates(): Promise<{ id: string; name: string; description: string }[]>;
+  /** 把指定笔记渲染为分享长图（SVG 字符串），templateId 默认 paper。 */
+  generateShareImage(noteId: string, templateId: string): Promise<string>;
   getMeta(): Promise<unknown>;
 }
 
@@ -39,6 +43,9 @@ const api: MaodouApi = {
   getSettings: () => ipcRenderer.invoke('settings:get'),
   saveSettings: (s) => ipcRenderer.invoke('settings:save', s),
   runSync: () => ipcRenderer.invoke('sync:run'),
+  listShareTemplates: () => ipcRenderer.invoke('share:templates'),
+  generateShareImage: (noteId, templateId) =>
+    ipcRenderer.invoke('share:generate', noteId, templateId),
   getMeta: () => ipcRenderer.invoke('meta:get'),
 };
 
