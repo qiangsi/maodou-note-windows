@@ -1,4 +1,5 @@
 import './style.css';
+import { svgToPngDataUrl, downloadDataUrl } from './share-export';
 
 // 渲染进程：通过 contextBridge 暴露的 window.maodou 调用主进程内核。
 // 注意：渲染进程不直接 import 内核（避免浏览器环境缺少 node:fs）。
@@ -15,6 +16,10 @@ declare global {
       saveSettings(s: Settings): Promise<void>;
       runSync(): Promise<SyncResult>;
       getMeta(): Promise<{ lastSyncCursor: string | null; lastSyncTime: string | null }>;
+      /** 列出分享长图模板（paper / minimal / dark）。 */
+      listShareTemplates(): Promise<{ id: string; name: string; description: string }[]>;
+      /** 把指定笔记渲染为分享长图（SVG 字符串），templateId 默认 paper。 */
+      generateShareImage(noteId: string, templateId: string): Promise<string>;
     };
   }
 }
@@ -76,6 +81,12 @@ function escapeHtml(s: string): string {
 
 let activeTagFilter: string | null = null;
 
+/** 渲染列表时缓存完整 Card 对象，详情弹层直接按 id 取用，避免重复请求。 */
+let cardsById = new Map<string, Card>();
+
+/** 分享长图模板列表，启动时预加载，详情弹层内复用。 */
+let shareTemplates: { id: string; name: string; description: string }[] = [];
+
 function toast(msg: string): void {
   let el = document.querySelector<HTMLDivElement>('.toast');
   if (!el) {
@@ -98,7 +109,7 @@ function renderCard(card: Card): string {
   const conflictBadge =
     card.status === 'conflict' ? '<span class="tag">⚠ 冲突</span>' : '';
   return `
-    <div class="card ${card.status === 'conflict' ? 'conflict' : ''}">
+    <div class="card ${card.status === 'conflict' ? 'conflict' : ''}" data-card="${card.id}">
       <div class="body">${escapeHtml(card.content)}</div>
       <div class="tags">${tagsHtml}${conflictBadge}</div>
       <div class="meta">
@@ -113,6 +124,10 @@ async function renderHome(): Promise<void> {
   const cards = activeTagFilter
     ? await window.maodou.search(null, [activeTagFilter])
     : await window.maodou.listCards();
+  // 缓存完整 Card 对象，详情弹层按 id 取用。显式标注类型，确保上游类型退化时仍可通过严格检查。
+  cardsById = new Map<string, Card>(
+    cards.map((c: Card) => [c.id, c] as [string, Card]),
+  );
   const listHtml = cards.length
     ? cards.map(renderCard).join('')
     : '<div class="empty">还没有卡片，写一条吧～</div>';
@@ -155,9 +170,19 @@ async function renderHome(): Promise<void> {
     });
   }
   view.querySelectorAll<HTMLButtonElement>('[data-del]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
       await window.maodou.deleteCard(btn.getAttribute('data-del')!);
       await renderHome();
+    });
+  });
+
+  // 点击卡片正文/区域打开详情弹层（删除按钮已 stopPropagation，不会触发）。
+  view.querySelectorAll<HTMLElement>('[data-card]').forEach((el) => {
+    el.addEventListener('click', () => {
+      const id = el.getAttribute('data-card')!;
+      const card = cardsById.get(id);
+      if (card) void openDetail(card);
     });
   });
 }
@@ -233,6 +258,102 @@ async function renderSettings(): Promise<void> {
   );
 }
 
+/** 预加载分享模板列表（失败则降级为空，详情弹层默认选中 paper）。 */
+async function loadShareTemplates(): Promise<void> {
+  try {
+    shareTemplates = await window.maodou.listShareTemplates();
+  } catch {
+    shareTemplates = [];
+  }
+}
+
+/**
+ * 打开卡片详情弹层：展示正文（只读）、#标签、创建时间，以及"分享长图"区。
+ * 分享区包含模板切换、长图预览与导出 PNG 三个部分。
+ */
+async function openDetail(card: Card): Promise<void> {
+  const mask = document.createElement('div');
+  mask.className = 'modal-mask';
+  mask.innerHTML = `
+    <div class="modal">
+      <div class="modal-head">
+        <span class="modal-title">卡片详情</span>
+        <button class="ghost modal-close">关闭</button>
+      </div>
+      <div class="modal-body">
+        <div class="detail-body">${escapeHtml(card.content)}</div>
+        <div class="detail-tags">${
+          card.tags.length
+            ? card.tags.map((t) => `<span class="tag">#${escapeHtml(t)}</span>`).join('')
+            : '<span class="detail-empty">无标签</span>'
+        }</div>
+        <div class="detail-time">创建于 ${fmtTime(card.createdAt)}</div>
+      </div>
+      <div class="share">
+        <div class="share-title">分享长图</div>
+        <div class="share-templates" id="share-templates"></div>
+        <div class="share-preview" id="share-preview"></div>
+        <div class="share-actions">
+          <button class="primary" id="share-export">导出 PNG</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(mask);
+
+  const close = () => mask.remove();
+  mask.querySelector<HTMLButtonElement>('.modal-close')!.addEventListener('click', close);
+  mask.addEventListener('click', (e) => {
+    if (e.target === mask) close();
+  });
+
+  const templatesBox = mask.querySelector<HTMLDivElement>('#share-templates')!;
+  const preview = mask.querySelector<HTMLDivElement>('#share-preview')!;
+  const exportBtn = mask.querySelector<HTMLButtonElement>('#share-export')!;
+
+  // 默认选中第一个模板（通常为 paper）。
+  let currentTemplate = shareTemplates.length ? shareTemplates[0].id : 'paper';
+  let currentSvg = '';
+
+  // 渲染模板选择按钮并高亮当前选中项。
+  const renderTemplates = (): void => {
+    templatesBox.innerHTML = shareTemplates
+      .map(
+        (t) =>
+          `<button class="tpl-btn ${t.id === currentTemplate ? 'active' : ''}" data-tpl="${escapeHtml(
+            t.id,
+          )}" title="${escapeHtml(t.description)}">${escapeHtml(t.name)}</button>`,
+      )
+      .join('');
+    templatesBox.querySelectorAll<HTMLButtonElement>('[data-tpl]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        currentTemplate = btn.getAttribute('data-tpl')!;
+        renderTemplates();
+        await generatePreview();
+      });
+    });
+  };
+
+  // 生成当前模板的长图 SVG，缓存到 currentSvg 并刷新预览。
+  const generatePreview = async (): Promise<void> => {
+    currentSvg = await window.maodou.generateShareImage(card.id, currentTemplate);
+    preview.innerHTML = currentSvg;
+  };
+
+  exportBtn.addEventListener('click', async () => {
+    if (!currentSvg) return;
+    try {
+      const png = await svgToPngDataUrl(currentSvg, 2);
+      downloadDataUrl(png, `maodou-${card.id}.png`);
+      toast('已导出 PNG');
+    } catch (err) {
+      toast(`导出失败：${(err as Error).message}`);
+    }
+  });
+
+  renderTemplates();
+  await generatePreview();
+}
+
 function switchView(name: 'home' | 'tags' | 'settings'): void {
   document
     .querySelectorAll('.nav-item')
@@ -259,5 +380,6 @@ function bindNav(): void {
 
 window.addEventListener('DOMContentLoaded', () => {
   bindNav();
+  void loadShareTemplates();
   void renderHome();
 });

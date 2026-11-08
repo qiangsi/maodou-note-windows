@@ -154,6 +154,18 @@ const svg = generateShareSvg(note, { templateId: 'paper' });
   ```
 - Android（Capacitor）：`clients/mobile/src/share-export.ts` 提供 `svgToPngDataUrl()` + `saveSharePng()`（写入设备 Documents 目录）。
 
+### 详情页「分享」按钮（两端一致体验）
+
+卡片详情页内已内置「分享长图」区，无需手写调用：
+
+- **入口**：卡片流点击任意卡片 → 桌面端弹出**居中模态**（`clients/desktop/src/main.ts` 的 `openDetail()` 渲染 `.modal-mask`），安卓端弹出**底部 sheet**（`clients/mobile/src/main.ts` 的 `openDetail()` 渲染 `.sheet-mask` + `.sheet--scroll`）。
+- **分享区结构**：模板切换按钮（`.tpl-btn`，当前选中高亮，默认 `paper`）+ 长图实时预览（`.share-preview` 内嵌 SVG）+「导出 PNG」按钮（`#share-export`）。
+- **切换模板**：点击 `.tpl-btn` 立即以新 `templateId` 重新调用 `generateShareImage()` 并重绘预览。
+- **导出**：
+  - 桌面：点击「导出 PNG」→ `svgToPngDataUrl()` 栅格化（2×）→ `downloadDataUrl()` 触发浏览器下载 `maodou-<noteId>.png`。
+  - 安卓：点击「导出 PNG」→ `saveSharePng()` 栅格化并写入设备 `Documents/maodou/<noteId>.png`（可在文件管理器/相册导入访问）。
+- **防误触**：卡片上的「软删除」按钮已 `stopPropagation()`，点击删除不会触发详情弹层。
+
 ### 测试
 
 `tests/ShareImage.test.ts`（13 用例）覆盖：模板列表、水印中英文、正文/日期/标签渲染、XSS 转义、空内容/空标签、超长中文断行、模板差异（暗色渐变 / 简约无阴影）、自定义水印。
