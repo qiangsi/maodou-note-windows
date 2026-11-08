@@ -59,7 +59,10 @@ export class HttpWebDavClient implements IWebDavClient {
       method: 'GET',
       headers: this.authHeaders(),
     });
-    if (res.status === 404) {
+    if (res.status === 404 || res.status === 409) {
+      // 坚果云对「父目录不存在」的路径连 GET 也返回 409 Conflict（其 API 手册：
+      // 409 = 尝试在父目录不存在情况下创建/上传；实测 GET 缺祖先目录时同样 409）。
+      // 首次同步时远端快照尚未建立 → 视为远端为空，由 upload 阶段的 MKCOL 自动建目录。
       return null;
     }
     if (!res.ok) {
