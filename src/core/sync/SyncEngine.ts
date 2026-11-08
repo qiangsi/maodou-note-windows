@@ -10,7 +10,9 @@ import { IClock } from '../utils/Clock';
 import { ISyncEngine } from './ISyncEngine';
 
 /** 远端快照文件名（MVP：单文件全量 JSON）。 */
-const DEFAULT_REMOTE_PATH = 'notes.json';
+// 坚果云等 WebDAV 服务对根目录直传文件不可靠（PUT 直接 404），
+// 社区惯例（Zotero/Obsidian 等）是使用应用专用子目录；MKCOL 自动建目录见 HttpWebDavClient。
+const DEFAULT_REMOTE_PATH = 'maodou/notes.json';
 
 /**
  * 增量同步引擎（对齐架构文档 SyncEngine + 时序图 4.2 / 4.3）。
