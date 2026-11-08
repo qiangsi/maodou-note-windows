@@ -24,7 +24,7 @@ jobs:
       - name: Build desktop
         working-directory: clients/desktop
         run: |
-          npm install
+          npm install --force || (npm cache clean --force && npm install --force)
           npm run build
 
       - name: Package Windows installer
