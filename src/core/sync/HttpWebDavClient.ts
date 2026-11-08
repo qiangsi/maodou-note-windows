@@ -68,12 +68,39 @@ export class HttpWebDavClient implements IWebDavClient {
     return await res.text();
   }
 
+  /**
+   * 逐级创建远端父目录（MKCOL）。
+   * WebDAV 规范：PUT 不会自动创建父目录；坚果云等还要求文件放在子目录下（根目录直传 PUT 会 404）。
+   * 405 = 目录已存在，视为成功。
+   */
+  private async ensureRemoteDir(path: string): Promise<void> {
+    const segments = path.split('/').slice(0, -1).filter(Boolean);
+    let current = '';
+    for (const seg of segments) {
+      current = `${current}/${seg}`;
+      const res = await fetch(this.buildUrl(current), {
+        method: 'MKCOL',
+        headers: this.authHeaders(),
+      });
+      if (!res.ok && res.status !== 405) {
+        throw new Error(`WebDAV MKCOL failed: ${res.status} ${res.statusText}`);
+      }
+    }
+  }
+
   public async upload(path: string, content: string): Promise<void> {
-    const res = await fetch(this.buildUrl(path), {
-      method: 'PUT',
-      headers: { ...this.authHeaders(), 'Content-Type': 'application/json' },
-      body: content,
-    });
+    const doPut = (): Promise<Response> =>
+      fetch(this.buildUrl(path), {
+        method: 'PUT',
+        headers: { ...this.authHeaders(), 'Content-Type': 'application/json' },
+        body: content,
+      });
+    let res = await doPut();
+    if (res.status === 404) {
+      // 父目录不存在（或根目录直传被拒）：先建目录再重试一次。
+      await this.ensureRemoteDir(path);
+      res = await doPut();
+    }
     if (!res.ok) {
       throw new Error(`WebDAV PUT failed: ${res.status} ${res.statusText}`);
     }
