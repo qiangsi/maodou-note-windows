@@ -246,6 +246,25 @@ async function renderSettings(): Promise<void> {
     'click',
     async () => {
       const status = view.querySelector<HTMLDivElement>('#s-status')!;
+      // 读输入框当前值并逐项校验（提示与缺失字段一一对应），同步前静默保存，无需先点"保存"。
+      const cfg: Settings = {
+        serverBaseUrl: view.querySelector<HTMLInputElement>('#s-url')!.value.trim(),
+        username: view.querySelector<HTMLInputElement>('#s-user')!.value.trim(),
+        password: view.querySelector<HTMLInputElement>('#s-pass')!.value,
+      };
+      if (!cfg.serverBaseUrl) {
+        status.textContent = '请先填写 WebDAV 服务器地址';
+        return;
+      }
+      if (!cfg.username) {
+        status.textContent = '请先填写用户名（坚果云为注册邮箱）';
+        return;
+      }
+      if (!cfg.password) {
+        status.textContent = '请先填写密码：坚果云需使用「应用密码」，登录密码无效';
+        return;
+      }
+      await window.maodou.saveSettings(cfg);
       status.textContent = '同步中…';
       try {
         const r = await window.maodou.runSync();
