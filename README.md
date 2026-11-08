@@ -130,7 +130,7 @@ npx cap sync           # 同步 web 资源到 Android 工程
   - `paper` —— 纸感卡片（米色纸张 + 便签阴影，默认模板）
   - `minimal` —— 简约留白（纯白、克制排版）
   - `dark` —— 暗色渐变（深色 + 渐变背景）
-- **右下角水印**：固定显示「毛豆笔记」(中文) + 「Maodou-Note」(英文)，小字、低透明度；文案可通过 `options.watermarkZh / watermarkEn` 覆盖。
+- **右下角水印**：固定显示「毛豆笔记」(中文) + 「Maodou-Memo」(英文)，小字、低透明度；文案可通过 `options.watermarkZh / watermarkEn` 覆盖。
 - **安全**：正文做 XML 转义，杜绝注入；中文/英文/emoji 混排按近似字宽自动换行。
 
 ### 内核 API（共享，两端复用）

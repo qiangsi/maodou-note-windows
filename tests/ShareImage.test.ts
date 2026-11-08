@@ -43,7 +43,7 @@ describe('分享长图 - 默认(纸感)渲染', () => {
 
   it('包含右下角水印中英文', () => {
     expect(svg).toContain(DEFAULT_WATERMARK_ZH); // 毛豆笔记
-    expect(svg).toContain(DEFAULT_WATERMARK_EN); // Maodou-Note
+    expect(svg).toContain(DEFAULT_WATERMARK_EN); // Maodou-Memo
     // 水印位于右下角：text-anchor="end"
     expect(svg).toContain('text-anchor="end"');
   });

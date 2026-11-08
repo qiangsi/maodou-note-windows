@@ -5,7 +5,7 @@
  * - 长图采用矢量 SVG 输出（宽度固定 1080，高度按内容自适应），
  *   两端（Electron WebView / Capacitor WebView）可直接把 SVG 栅格化为 PNG 下载。
  * - 每个模板定义一整套配色 / 字体 / 圆角，渲染逻辑见 ShareImageBuilder。
- * - 右下角水印固定为「毛豆笔记 · Maodou-Note」，由渲染层统一绘制。
+ * - 右下角水印固定为「毛豆笔记 · Maodou-Memo」，由渲染层统一绘制。
  *
  * 当前提供 3 个模板：paper（纸感卡片，默认）、minimal（简约留白）、dark（暗色渐变）。
  */

@@ -9,22 +9,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
-    "dist": "electron-builder --win nsis --publish never"
-  },
-  "build": {
-    "appId": "tech.maodou.note",
-    "productName": "毛豆笔记",
-    "files": ["dist/**", "dist-electron/**"],
-    "win": {
-      "target": "nsis",
-      "icon": "build/icon.png"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "artifactName": "毛豆笔记-${version}-Setup.${ext}"
-    }
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "maodou-notes": "file:../.."

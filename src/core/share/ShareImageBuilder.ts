@@ -3,7 +3,7 @@
  *
  * 设计要点（对齐用户需求）：
  * - 单条笔记 → 一张长图：正文 + #标签 chips + 创建时间。
- * - 右下角固定水印：「毛豆笔记」(中文) + 「Maodou-Note」(英文)，小字、低透明度。
+ * - 右下角固定水印：「毛豆笔记」(中文) + 「Maodou-Memo」(英文)，小字、低透明度。
  * - 输出 SVG（宽度固定，高度按内容自适应），便于两端 WebView 直接栅格化为 PNG。
  * - 内容做 XML 转义，杜绝注入；中文/英文/emoji 混排按近似字宽自动换行。
  */
@@ -13,12 +13,12 @@ import { ShareTemplate, getTemplate } from './templates';
 
 /** 水印默认文案（可被 options 覆盖）。 */
 export const DEFAULT_WATERMARK_ZH = '毛豆笔记';
-export const DEFAULT_WATERMARK_EN = 'Maodou-Note';
+export const DEFAULT_WATERMARK_EN = 'Maodou-Memo';
 
 export interface ShareImageOptions {
   /** 水印中文文案，默认「毛豆笔记」。 */
   watermarkZh?: string;
-  /** 水印英文文案，默认「Maodou-Note」。 */
+  /** 水印英文文案，默认「Maodou-Memo」。 */
   watermarkEn?: string;
   /** 模板 id，默认 paper。 */
   templateId?: string;
