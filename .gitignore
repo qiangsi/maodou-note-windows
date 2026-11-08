@@ -1,0 +1,24 @@
+# 依赖
+node_modules/
+
+# 测试/工具临时目录（由 vitest.config.ts 重定向到项目内 .tmp）
+.tmp/
+
+# 构建产物
+dist/
+build/
+
+# 本地笔记数据库（运行时生成）
+*.db
+*.db-journal
+
+# 编辑器/系统
+.DS_Store
+.idea/
+.vscode/
+
+# 客户端构建产物
+clients/desktop/src-tauri/target/
+clients/desktop/node_modules/
+clients/mobile/android/app/build/
+clients/mobile/node_modules/

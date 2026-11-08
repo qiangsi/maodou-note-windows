@@ -1,0 +1,28 @@
+{
+  "name": "maodou-notes",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "毛豆笔记 (Maodou Notes) - 类 flomo 极简卡片笔记。TypeScript 共享内核 + WASM SQLite 离线存储 + WebDAV 增量同步。",
+  "main": "src/core/index.ts",
+  "types": "src/core/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/core/index.ts",
+      "import": "./src/core/index.ts"
+    }
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sqlite.org/sqlite-wasm": "3.54.1-build1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

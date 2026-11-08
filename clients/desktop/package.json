@@ -1,0 +1,25 @@
+{
+  "name": "maodou-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "毛豆笔记 Windows 客户端（Electron 壳，复用 TypeScript 共享内核）。",
+  "type": "module",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "maodou-notes": "file:../.."
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "typescript": "^5.6.0",
+    "vite": "^5.4.0",
+    "vite-plugin-electron": "^0.28.0",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.0"
+  }
+}
