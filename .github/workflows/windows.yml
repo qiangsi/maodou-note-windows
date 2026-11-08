@@ -1,0 +1,40 @@
+name: Build Windows
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install & test core
+        run: |
+          npm ci
+          npm test
+
+      - name: Build desktop
+        working-directory: clients/desktop
+        run: |
+          npm install
+          npm run build
+
+      - name: Package Windows installer
+        working-directory: clients/desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win nsis --publish never
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: maodou-note-windows
+          path: clients/desktop/dist/*.exe
