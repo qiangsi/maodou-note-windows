@@ -1,6 +1,22 @@
 import { IWebDavClient } from './IWebDavClient';
 
 /**
+ * 跨环境 base64 编码。
+ * Node 主进程（桌面端 Electron main）有全局 Buffer；浏览器 / WebView（安卓端）没有 Buffer，
+ * 必须回退到 btoa。凭据多为 ASCII（邮箱/密码），但按 UTF-8 字节编码以保证中文/特殊字符安全。
+ */
+function toBase64(input: string): string {
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(input).toString('base64');
+  }
+  const bytes = new TextEncoder().encode(input);
+  let binary = '';
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary);
+}
+
+
+/**
  * 真实 WebDAV HTTP 客户端（真机用）。
  *
  * 使用 fetch 实现 WebDAV 基础动词：
@@ -19,7 +35,7 @@ export class HttpWebDavClient implements IWebDavClient {
 
   private authHeaders(): Record<string, string> {
     if (this.username && this.password) {
-      const token = Buffer.from(`${this.username}:${this.password}`).toString('base64');
+      const token = toBase64(`${this.username}:${this.password}`);
       return { Authorization: `Basic ${token}` };
     }
     return {};
