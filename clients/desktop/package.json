@@ -28,7 +28,13 @@
       "allowToChangeInstallationDirectory": true,
       "artifactName": "毛豆笔记-${version}-Setup.${ext}"
     },
-    "publish": null
+    "publish": null,
+    "extraResources": [
+      {
+        "from": "node_modules/@sqlite.org/sqlite-wasm/dist/sqlite3.wasm",
+        "to": "sqlite3.wasm"
+      }
+    ]
   },
   "dependencies": {
     "maodou-notes": "file:../.."

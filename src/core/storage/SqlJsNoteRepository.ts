@@ -457,6 +457,27 @@ export class SqlJsNoteRepository implements INoteRepository {
   }
 
   private static async loadSqlite(): Promise<any> {
-    return sqlite3InitModule();
+    // Electron 打包（asar 或 ESM bundle）下，Emscripten 会把内联的 data: URL 当文件路径
+    // 去 open()，Windows 上报 ENAMETOOLONG。传入 wasmBinary 时 Emscripten 直接用它，
+    // 完全绕开路径解析（data: URL 或文件查找都不再发生）。
+    const { readFileSync } = await import('node:fs');
+    const { dirname, join } = await import('node:path');
+    const { fileURLToPath } = await import('node:url');
+    const resPath: string | undefined = (process as any).resourcesPath;
+    let wasmBinary: Buffer | undefined;
+    try {
+      const here = dirname(fileURLToPath(import.meta.url));
+      for (const dir of [here, join(here, '..'), resPath ?? '', process.cwd()]) {
+        if (!dir) continue;
+        const candidate = join(dir, 'sqlite3.wasm');
+        if (existsSync(candidate)) {
+          wasmBinary = readFileSync(candidate);
+          break;
+        }
+      }
+    } catch {
+      // 找不到真实 wasm 文件就退回默认行为（dev/Node 下直接跑没问题）
+    }
+    return (sqlite3InitModule as any)(wasmBinary ? { wasmBinary } : {});
   }
 }
