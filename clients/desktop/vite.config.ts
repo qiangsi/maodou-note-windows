@@ -23,6 +23,16 @@ export default defineConfig({
         vite: {
           build: {
             outDir: 'dist-electron',
+            // Electron 对 .js preload 强制按 CommonJS 加载（.mjs 才走 ESM），
+            // 所以这里必须产出 CJS；lib 模式 + cjs 格式确保 import 语句被转译。
+            lib: {
+              entry: 'electron/preload.ts',
+              formats: ['cjs'],
+              fileName: () => 'preload.js',
+            },
+            rollupOptions: {
+              external: ['electron'],
+            },
           },
         },
       },
