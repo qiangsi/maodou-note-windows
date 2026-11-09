@@ -478,6 +478,18 @@ export class SqlJsNoteRepository implements INoteRepository {
     } catch {
       // 找不到真实 wasm 文件就退回默认行为（dev/Node 下直接跑没问题）
     }
+    if (!wasmBinary) {
+      // 兜底：从 bundle 里的 data:URL 直接解出 wasm 二进制，彻底绕开 Emscripten 的路径解析
+      try {
+        const { readFileSync: rf } = await import('node:fs');
+        const here2 = dirname(fileURLToPath(import.meta.url));
+        const bundle = rf(join(here2, 'main.js'), 'utf8');
+        const m = bundle.match(/data:application\/wasm;base64,([A-Za-z0-9+/=]+)/);
+        if (m) {
+          wasmBinary = Buffer.from(m[1], 'base64');
+        }
+      } catch { /* 最终回退默认行为 */ }
+    }
     return (sqlite3InitModule as any)(wasmBinary ? { wasmBinary } : {});
   }
 }
