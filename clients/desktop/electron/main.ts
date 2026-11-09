@@ -1,6 +1,10 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+
+// ESM 下没有 __dirname，用 import.meta.url 推导（打包后 package.json type=module，主进程按 ESM 加载）
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // 复用共享内核（TypeScript 内核在 Node 主进程直接运行，node:fs / WASM SQLite 均可用）
 import {
@@ -164,13 +168,25 @@ function createWindow(): void {
 }
 
 app.whenReady().then(async () => {
-  await bootstrap();
-  createWindow();
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
-  });
+  try {
+    await bootstrap();
+    createWindow();
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+      }
+    });
+  } catch (err) {
+    // 启动失败绝不能静默：弹出错误窗口并把日志写到 userData 方便排查
+    const { dialog } = await import('electron');
+    const detail = err instanceof Error ? (err.stack ?? err.message) : String(err);
+    dialog.showErrorBox('毛豆笔记启动失败', detail);
+    try {
+      mkdirSync(app.getPath('userData'), { recursive: true });
+      writeFileSync(join(app.getPath('userData'), 'startup-error.log'), detail, 'utf-8');
+    } catch { /* ignore */ }
+    app.quit();
+  }
 });
 
 app.on('window-all-closed', () => {
