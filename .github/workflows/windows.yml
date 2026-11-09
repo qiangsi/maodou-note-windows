@@ -25,9 +25,6 @@ jobs:
         working-directory: clients/desktop
         run: |
           npm install -g pnpm
-          echo "onlyBuiltDependencies:" > pnpm-workspace.yaml
-          echo "  - electron" >> pnpm-workspace.yaml
-          echo "  - esbuild" >> pnpm-workspace.yaml
           pnpm install --shamefully-hoist
           pnpm exec vite build
 
