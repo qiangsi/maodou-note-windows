@@ -38,6 +38,11 @@
         "from": "build/tray.png",
         "to": "tray.png"
       }
+    ],
+    "compression": "maximum",
+    "electronLanguages": [
+      "zh-CN",
+      "en-US"
     ]
   },
   "dependencies": {
