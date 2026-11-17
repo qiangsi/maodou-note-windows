@@ -29,6 +29,7 @@ import {
  */
 
 const isDev = !app.isPackaged;
+let forceQuit = false;
 const DB_PATH = join(app.getPath('userData'), 'maodou.db');
 const SETTINGS_PATH = join(app.getPath('userData'), 'settings.json');
 
@@ -36,6 +37,8 @@ interface DesktopSettings {
   serverBaseUrl: string;
   username: string;
   password: string;
+  /** 关闭按钮行为：ask=每次询问（默认），minimize=最小化到托盘，exit=直接退出 */
+  closeAction?: 'ask' | 'minimize' | 'exit';
 }
 
 function loadSettings(): DesktopSettings {
@@ -46,12 +49,100 @@ function loadSettings(): DesktopSettings {
   } catch {
     // 忽略损坏的配置，回退默认值
   }
-  return { serverBaseUrl: '', username: '', password: '' };
+  return { serverBaseUrl: '', username: '', password: '', closeAction: 'ask' };
 }
 
 function saveSettings(s: DesktopSettings): void {
   mkdirSync(join(SETTINGS_PATH, '..'), { recursive: true });
   writeFileSync(SETTINGS_PATH, JSON.stringify(s), 'utf-8');
+}
+
+// ---------- 托盘 + 关闭行为 ----------
+let tray: import('electron').Tray | null = null;
+
+function showMainWindow(): void {
+  const win = BrowserWindow.getAllWindows()[0];
+  if (win) {
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+  } else {
+    createWindow();
+  }
+}
+
+function createTray(): void {
+  const { Tray, Menu, nativeImage } = require('electron') as typeof import('electron');
+  // 托盘图标：优先用打包时的应用图标（resources/tray.png），缺失时空图标兜底
+  const { existsSync, readFileSync } = require('node:fs') as typeof import('node:fs');
+  let icon = nativeImage.createEmpty();
+  const iconCandidates = [
+    join(__dirname, 'tray.png'),
+    join((process as any).resourcesPath ?? '', 'tray.png'),
+    join(__dirname, '../dist/tray.png'),
+  ];
+  for (const p of iconCandidates) {
+    try {
+      if (p && existsSync(p)) {
+        icon = nativeImage.createFromBuffer(readFileSync(p));
+        if (!icon.isEmpty()) break;
+      }
+    } catch { /* try next */ }
+  }
+  tray = new Tray(icon);
+  tray.setToolTip('毛豆笔记');
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: '打开毛豆笔记', click: () => showMainWindow() },
+      { type: 'separator' },
+      {
+        label: '退出',
+        click: () => {
+          forceQuit = true;
+          app.quit();
+        },
+      },
+    ]),
+  );
+  tray.on('double-click', () => showMainWindow());
+}
+
+async function handleCloseRequest(win: BrowserWindow): Promise<void> {
+  const s = loadSettings();
+  const action = s.closeAction ?? 'ask';
+  if (action === 'exit') {
+    forceQuit = true;
+    app.quit();
+    return;
+  }
+  if (action === 'minimize') {
+    win.hide(); // 隐藏到托盘，不占任务栏
+    return;
+  }
+  // ask：弹一次三选一，可勾选"记住我的选择"
+  const { dialog } = await import('electron');
+  const r = await dialog.showMessageBox(win, {
+    type: 'question',
+    title: '关闭毛豆笔记',
+    message: '要退出毛豆笔记，还是最小化到系统托盘？',
+    detail: '最小化后程序在托盘运行，点托盘图标可重新打开。',
+    checkboxLabel: '记住我的选择，不再询问',
+    checkboxChecked: false,
+    buttons: ['最小化到托盘', '退出程序', '取消'],
+    defaultId: 0,
+    cancelId: 2,
+  });
+  if (r.response === 2) return; // 取消
+  const chosen: 'minimize' | 'exit' = r.response === 0 ? 'minimize' : 'exit';
+  if (r.checkboxChecked) {
+    saveSettings({ ...s, closeAction: chosen });
+  }
+  if (chosen === 'minimize') {
+    win.hide();
+  } else {
+    forceQuit = true;
+    app.quit();
+  }
 }
 
 async function createRepository() {
@@ -160,6 +251,13 @@ function createWindow(): void {
     },
   });
 
+  // 点关闭（含 Alt+F4）走询问/托盘逻辑；只有托盘菜单"退出"才真正退出
+  win.on('close', (e) => {
+    if (forceQuit) return;
+    e.preventDefault();
+    void handleCloseRequest(win);
+  });
+
   if (isDev) {
     win.loadURL('http://localhost:5173');
   } else {
@@ -171,6 +269,9 @@ app.whenReady().then(async () => {
   try {
     await bootstrap();
     createWindow();
+    if (!isDev) {
+      createTray();
+    }
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         createWindow();
@@ -190,10 +291,11 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
+  // 托盘模式下窗口隐藏后此事件不触发；此处理只兜底真退出时的清理
   if (repository) {
     repository.close();
   }
-  if (process.platform !== 'darwin') {
+  if (process.platform !== 'darwin' || forceQuit) {
     app.quit();
   }
 });

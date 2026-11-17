@@ -33,6 +33,10 @@
       {
         "from": "node_modules/@sqlite.org/sqlite-wasm/dist/sqlite3.wasm",
         "to": "sqlite3.wasm"
+      },
+      {
+        "from": "build/tray.png",
+        "to": "tray.png"
       }
     ]
   },
