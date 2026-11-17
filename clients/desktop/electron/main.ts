@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, dialog } from 'electron';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
@@ -72,9 +72,7 @@ function showMainWindow(): void {
 }
 
 function createTray(): void {
-  const { Tray, Menu, nativeImage } = require('electron') as typeof import('electron');
   // 托盘图标：优先用打包时的应用图标（resources/tray.png），缺失时空图标兜底
-  const { existsSync, readFileSync } = require('node:fs') as typeof import('node:fs');
   let icon = nativeImage.createEmpty();
   const iconCandidates = [
     join(__dirname, 'tray.png'),
@@ -120,7 +118,6 @@ async function handleCloseRequest(win: BrowserWindow): Promise<void> {
     return;
   }
   // ask：弹一次三选一，可勾选"记住我的选择"
-  const { dialog } = await import('electron');
   const r = await dialog.showMessageBox(win, {
     type: 'question',
     title: '关闭毛豆笔记',
@@ -279,8 +276,7 @@ app.whenReady().then(async () => {
     });
   } catch (err) {
     // 启动失败绝不能静默：弹出错误窗口并把日志写到 userData 方便排查
-    const { dialog } = await import('electron');
-    const detail = err instanceof Error ? (err.stack ?? err.message) : String(err);
+      const detail = err instanceof Error ? (err.stack ?? err.message) : String(err);
     dialog.showErrorBox('毛豆笔记启动失败', detail);
     try {
       mkdirSync(app.getPath('userData'), { recursive: true });
